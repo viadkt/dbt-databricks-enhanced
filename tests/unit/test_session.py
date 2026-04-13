@@ -233,7 +233,7 @@ class TestDatabricksSessionHandle:
 
         handle.list_schemas("my_catalog", "my_schema")
 
-        mock_spark.sql.assert_called_with("SHOW SCHEMAS IN `my_catalog` LIKE 'my_schema'")
+        mock_spark.sql.assert_called_with("SHOW SCHEMAS IN `my_catalog` LIKE 'my\\_schema'")
 
     def test_list_tables_executes_show_tables(self, handle, mock_spark):
         """Test that list_tables executes SHOW TABLES."""

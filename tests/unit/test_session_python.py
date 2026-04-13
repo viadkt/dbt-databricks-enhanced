@@ -23,8 +23,9 @@ class TestSubmitPythonJobSessionMode:
         mock_config.credentials.is_session_mode = True
         adapter = DatabricksAdapter.__new__(DatabricksAdapter)
         adapter.config = mock_config
-        adapter.behavior = MagicMock()
-        adapter.behavior.use_user_folder_for_python.setting = False
+        mock_behavior = MagicMock()
+        mock_behavior.use_user_folder_for_python.setting = False
+        object.__setattr__(adapter, "behavior", mock_behavior)
         return adapter
 
     def test_auto_selects_session_submission_when_session_mode(self, adapter):

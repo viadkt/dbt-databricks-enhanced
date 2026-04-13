@@ -38,14 +38,12 @@ class SessionCursorWrapper:
 
     def __init__(self, spark: "SparkSession"):
         self._spark = spark
-        self._df: Optional["DataFrame"] = None
-        self._rows: Optional[list["Row"]] = None
+        self._df: Optional[DataFrame] = None
+        self._rows: Optional[list[Row]] = None
         self._query_id: str = "session-query"
         self.open = True
 
-    def execute(
-        self, sql: str, bindings: Optional[Sequence[Any]] = None
-    ) -> "SessionCursorWrapper":
+    def execute(self, sql: str, bindings: Optional[Sequence[Any]] = None) -> "SessionCursorWrapper":
         """Execute a SQL statement and store the resulting DataFrame."""
         if bindings:
             raise DbtRuntimeError(
@@ -226,9 +224,7 @@ class DatabricksSessionHandle:
         except Exception:
             return "session-unknown"
 
-    def execute(
-        self, sql: str, bindings: Optional[Sequence[Any]] = None
-    ) -> SessionCursorWrapper:
+    def execute(self, sql: str, bindings: Optional[Sequence[Any]] = None) -> SessionCursorWrapper:
         """Execute a SQL statement and return a cursor wrapper."""
         if not self.open:
             raise DbtRuntimeError("Attempting to execute on a closed session handle")
@@ -253,9 +249,7 @@ class DatabricksSessionHandle:
         escaped = escaped.replace("'", "''")
         return escaped
 
-    def list_schemas(
-        self, database: str, schema: Optional[str] = None
-    ) -> SessionCursorWrapper:
+    def list_schemas(self, database: str, schema: Optional[str] = None) -> SessionCursorWrapper:
         """List schemas in the given database/catalog."""
         quoted_db = self._quote_identifier(database)
         if schema:

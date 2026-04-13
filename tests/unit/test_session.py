@@ -38,7 +38,9 @@ class TestSessionCursorWrapper:
         """Test that execute raises DbtRuntimeError when bindings are provided."""
         from dbt_common.exceptions import DbtRuntimeError
 
-        with pytest.raises(DbtRuntimeError, match="Session mode does not support SQL parameter bindings"):
+        with pytest.raises(
+            DbtRuntimeError, match="Session mode does not support SQL parameter bindings"
+        ):
             cursor.execute("SELECT %s, %s", (1, "test"))
 
     def test_fetchall_returns_tuples(self, cursor, mock_spark):

@@ -4,13 +4,13 @@ import os
 from unittest.mock import patch
 
 import pytest
-from dbt_common.exceptions import DbtConfigError, DbtRuntimeError, DbtValidationError
+from dbt_common.exceptions import DbtConfigError, DbtValidationError
 
 from dbt.adapters.databricks.credentials import (
     CONNECTION_METHOD_DBSQL,
     CONNECTION_METHOD_SESSION,
-    DBT_DATABRICKS_SESSION_MODE_ENV,
     DATABRICKS_RUNTIME_VERSION_ENV,
+    DBT_DATABRICKS_SESSION_MODE_ENV,
     DatabricksCredentials,
 )
 

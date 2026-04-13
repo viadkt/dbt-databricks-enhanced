@@ -151,6 +151,23 @@ class TestSessionCursorWrapper:
             assert cursor.open is True
         assert cursor.open is False
 
+    def test_fetchmany_returns_empty_when_no_rows(self, cursor, mock_spark):
+        """fetchmany returns empty list when no rows exist."""
+        mock_df = MagicMock()
+        mock_df.collect.return_value = []
+        mock_spark.sql.return_value = mock_df
+
+        cursor.execute("SELECT 1")
+        result = cursor.fetchmany(5)
+
+        assert result == []
+
+    def test_cancel_sets_open_to_false(self, cursor):
+        """cancel() sets open to False."""
+        assert cursor.open is True
+        cursor.cancel()
+        assert cursor.open is False
+
 
 class TestDatabricksSessionHandle:
     """Tests for DatabricksSessionHandle."""
@@ -321,3 +338,37 @@ class TestDatabricksSessionHandle:
 
             mock_spark.conf.set.assert_any_call("key1", "value1")
             mock_spark.conf.set.assert_any_call("key2", "123")
+
+    def test_dbr_version_fallback_on_empty_string(self, handle, mock_spark):
+        """dbr_version returns (maxsize, maxsize) when version string is empty."""
+        import sys
+
+        mock_spark.conf.get.return_value = ""
+        handle._dbr_version = None  # reset cached value
+        version = handle.dbr_version
+        assert version == (sys.maxsize, sys.maxsize)
+
+    def test_dbr_version_fallback_on_exception(self, handle, mock_spark):
+        """dbr_version returns (maxsize, maxsize) when conf.get raises."""
+        import sys
+
+        mock_spark.conf.get.side_effect = Exception("conf unavailable")
+        handle._dbr_version = None  # reset cached value
+        version = handle.dbr_version
+        assert version == (sys.maxsize, sys.maxsize)
+
+    def test_session_id_fallback_on_exception(self, handle, mock_spark):
+        """session_id returns 'session-unknown' when sparkContext raises."""
+        type(mock_spark).sparkContext = property(
+            lambda self: (_ for _ in ()).throw(Exception("no spark context"))
+        )
+        result = handle.session_id
+        assert result == "session-unknown"
+
+    def test_execute_raises_on_closed_handle(self, handle):
+        """execute raises DbtRuntimeError when handle is closed."""
+        from dbt_common.exceptions import DbtRuntimeError
+
+        handle.close()
+        with pytest.raises(DbtRuntimeError, match="closed session handle"):
+            handle.execute("SELECT 1")

@@ -16,67 +16,43 @@ from dbt.adapters.databricks.python_models.python_submissions import (
 class TestSubmitPythonJobSessionMode:
     """Tests for submit_python_job session mode auto-selection."""
 
-    def test_auto_selects_session_submission_when_session_mode(self):
-        """submit_python_job sets submission_method='session' when is_session_mode and none set."""
+    @pytest.fixture
+    def adapter(self):
+        """Create a DatabricksAdapter instance with mocked config."""
         mock_config = MagicMock()
         mock_config.credentials.is_session_mode = True
-
         adapter = DatabricksAdapter.__new__(DatabricksAdapter)
         adapter.config = mock_config
         adapter.behavior = MagicMock()
         adapter.behavior.use_user_folder_for_python.setting = False
+        return adapter
 
+    def test_auto_selects_session_submission_when_session_mode(self, adapter):
+        """submit_python_job sets submission_method='session' when is_session_mode and none set."""
         parsed_model = {"config": {}}
-
         with patch.object(
-            DatabricksAdapter.__bases__[0],
-            "submit_python_job",
-            return_value=MagicMock(),
+            DatabricksAdapter.__bases__[0], "submit_python_job", return_value=MagicMock()
         ):
             adapter.submit_python_job(parsed_model, "result = 1")
-
         assert parsed_model["config"]["submission_method"] == "session"
 
-    def test_does_not_override_explicit_submission_method(self):
+    def test_does_not_override_explicit_submission_method(self, adapter):
         """submit_python_job does not overwrite submission_method when already set."""
-        mock_config = MagicMock()
-        mock_config.credentials.is_session_mode = True
-
-        adapter = DatabricksAdapter.__new__(DatabricksAdapter)
-        adapter.config = mock_config
-        adapter.behavior = MagicMock()
-        adapter.behavior.use_user_folder_for_python.setting = False
-
         parsed_model = {"config": {"submission_method": "notebook"}}
-
         with patch.object(
-            DatabricksAdapter.__bases__[0],
-            "submit_python_job",
-            return_value=MagicMock(),
+            DatabricksAdapter.__bases__[0], "submit_python_job", return_value=MagicMock()
         ):
             adapter.submit_python_job(parsed_model, "result = 1")
-
         assert parsed_model["config"]["submission_method"] == "notebook"
 
-    def test_skips_auto_select_when_not_session_mode(self):
+    def test_skips_auto_select_when_not_session_mode(self, adapter):
         """submit_python_job does not set submission_method when not in session mode."""
-        mock_config = MagicMock()
-        mock_config.credentials.is_session_mode = False
-
-        adapter = DatabricksAdapter.__new__(DatabricksAdapter)
-        adapter.config = mock_config
-        adapter.behavior = MagicMock()
-        adapter.behavior.use_user_folder_for_python.setting = False
-
+        adapter.config.credentials.is_session_mode = False
         parsed_model = {"config": {}}
-
         with patch.object(
-            DatabricksAdapter.__bases__[0],
-            "submit_python_job",
-            return_value=MagicMock(),
+            DatabricksAdapter.__bases__[0], "submit_python_job", return_value=MagicMock()
         ):
             adapter.submit_python_job(parsed_model, "result = 1")
-
         assert "submission_method" not in parsed_model["config"]
 
 

@@ -372,3 +372,37 @@ class TestDatabricksSessionHandle:
         handle.close()
         with pytest.raises(DbtRuntimeError, match="closed session handle"):
             handle.execute("SELECT 1")
+
+    def test_cancel_closes_cursor_and_sets_open_false(self, handle, mock_spark):
+        """cancel() closes active cursor and sets open=False."""
+        mock_df = MagicMock()
+        mock_spark.sql.return_value = mock_df
+        cursor = handle.execute("SELECT 1")
+        assert cursor.open is True
+
+        handle.cancel()
+
+        assert handle.open is False
+        assert cursor.open is False
+
+    def test_close_closes_cursor_and_sets_open_false(self, handle, mock_spark):
+        """close() closes active cursor and sets open=False."""
+        mock_df = MagicMock()
+        mock_spark.sql.return_value = mock_df
+        cursor = handle.execute("SELECT 1")
+
+        handle.close()
+
+        assert handle.open is False
+        assert cursor.open is False
+
+    def test_rollback_is_noop(self, handle):
+        """rollback() does not raise."""
+        handle.rollback()  # should not raise
+
+    def test_del_does_not_raise(self, handle):
+        """__del__ does not raise even with open cursor."""
+        mock_df = MagicMock()
+        handle._spark.sql.return_value = mock_df
+        handle.execute("SELECT 1")
+        handle.__del__()  # should not raise

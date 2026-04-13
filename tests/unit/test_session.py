@@ -224,7 +224,7 @@ class TestDatabricksSessionHandle:
 
         handle.list_schemas("my_catalog")
 
-        mock_spark.sql.assert_called_with("SHOW SCHEMAS IN my_catalog")
+        mock_spark.sql.assert_called_with("SHOW SCHEMAS IN `my_catalog`")
 
     def test_list_schemas_with_pattern(self, handle, mock_spark):
         """Test that list_schemas includes LIKE pattern."""
@@ -233,7 +233,7 @@ class TestDatabricksSessionHandle:
 
         handle.list_schemas("my_catalog", "my_schema")
 
-        mock_spark.sql.assert_called_with("SHOW SCHEMAS IN my_catalog LIKE 'my_schema'")
+        mock_spark.sql.assert_called_with("SHOW SCHEMAS IN `my_catalog` LIKE 'my_schema'")
 
     def test_list_tables_executes_show_tables(self, handle, mock_spark):
         """Test that list_tables executes SHOW TABLES."""
@@ -242,7 +242,7 @@ class TestDatabricksSessionHandle:
 
         handle.list_tables("my_catalog", "my_schema")
 
-        mock_spark.sql.assert_called_with("SHOW TABLES IN my_catalog.my_schema")
+        mock_spark.sql.assert_called_with("SHOW TABLES IN `my_catalog`.`my_schema`")
 
     def test_create_gets_or_creates_spark_session(self):
         """Test that create uses getOrCreate."""

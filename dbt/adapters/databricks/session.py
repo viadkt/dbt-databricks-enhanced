@@ -250,7 +250,13 @@ class DatabricksSessionHandle:
         return escaped
 
     def list_schemas(self, database: str, schema: Optional[str] = None) -> SessionCursorWrapper:
-        """List schemas in the given database/catalog."""
+        """List schemas in the given database/catalog using Spark SQL.
+
+        Session mode executes raw Spark SQL (SHOW SCHEMAS) directly via SparkSession,
+        unlike the DBSQL/JDBC path which delegates to the Thrift GetSchemas RPC.
+        Identifiers are backtick-quoted and LIKE patterns are escaped manually because
+        there is no driver layer to handle this automatically.
+        """
         quoted_db = self._quote_identifier(database)
         if schema:
             escaped_schema = self._escape_like_pattern(schema)
@@ -260,7 +266,13 @@ class DatabricksSessionHandle:
         return self.execute(sql)
 
     def list_tables(self, database: str, schema: str) -> SessionCursorWrapper:
-        """List tables in the given database and schema."""
+        """List tables in the given database and schema using Spark SQL.
+
+        Session mode executes raw Spark SQL (SHOW TABLES) directly via SparkSession,
+        unlike the DBSQL/JDBC path which delegates to the Thrift GetTables RPC.
+        Identifiers are backtick-quoted manually because there is no driver layer
+        to handle quoting automatically.
+        """
         quoted_db = self._quote_identifier(database)
         quoted_schema = self._quote_identifier(schema)
         sql = f"SHOW TABLES IN {quoted_db}.{quoted_schema}"

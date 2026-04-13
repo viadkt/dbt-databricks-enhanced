@@ -439,6 +439,9 @@ class DatabricksConnectionManager(SparkConnectionManager):
                     cursor.close()
 
     def list_schemas(self, database: str, schema: Optional[str] = None) -> "Table":
+        # DBSQL/JDBC path: delegates to the Thrift GetSchemas RPC via the connector cursor.
+        # The driver handles identifier quoting and pattern matching internally, so backticks
+        # are stripped before passing. Contrast with session mode which executes raw Spark SQL.
         database = database.strip("`")
         if schema:
             schema = schema.strip("`").lower()
@@ -448,6 +451,9 @@ class DatabricksConnectionManager(SparkConnectionManager):
         )
 
     def list_tables(self, database: str, schema: str) -> "Table":
+        # DBSQL/JDBC path: delegates to the Thrift GetTables RPC via the connector cursor.
+        # The driver handles identifier quoting internally, so backticks are stripped before
+        # passing. Contrast with session mode which executes raw Spark SQL.
         database = database.strip("`")
         schema = schema.strip("`").lower()
         return self._execute_with_cursor(

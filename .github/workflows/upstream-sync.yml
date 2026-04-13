@@ -203,9 +203,12 @@ jobs:
         if: steps.merge.outputs.merge_status == 'clean'
         env:
           NEW_TAG: ${{ needs.check-upstream.outputs.new_tag }}
+          BRANCH_NAME: ${{ steps.merge.outputs.branch_name }}
         run: |
+          # Update the tag file on the sync branch so it gets merged via the PR
+          git checkout "$BRANCH_NAME"
           echo "$NEW_TAG" > .github/last-upstream-sync-tag
           git add .github/last-upstream-sync-tag
           git commit -m "chore: update last upstream sync tag to $NEW_TAG"
-          git push origin HEAD:main
-          echo "Updated last-upstream-sync-tag to $NEW_TAG"
+          git push origin "$BRANCH_NAME"
+          echo "Updated last-upstream-sync-tag to $NEW_TAG on $BRANCH_NAME"

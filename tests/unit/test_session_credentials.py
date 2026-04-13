@@ -260,3 +260,52 @@ class TestValidateSessionMode:
         with patch.dict("sys.modules", {"pyspark": MagicMock(), "pyspark.sql": MagicMock()}):
             with pytest.raises(DbtValidationError, match="Schema is required"):
                 creds._validate_session_mode()
+
+
+class TestSessionModeUniqueField:
+    """Tests for unique_field and connection key methods in session mode."""
+
+    def test_unique_field_returns_session_uri(self):
+        """unique_field returns session://catalog/schema in session mode."""
+        with patch.dict(os.environ, {DBT_DATABRICKS_SESSION_MODE_ENV: "true"}):
+            creds = DatabricksCredentials(
+                method="session",
+                database="my_catalog",
+                schema="my_schema",
+            )
+        assert creds.unique_field == "session://my_catalog/my_schema"
+
+    def test_connection_keys_session_includes_catalog(self):
+        """_connection_keys_session includes catalog when database is set."""
+        with patch.dict(os.environ, {DBT_DATABRICKS_SESSION_MODE_ENV: "true"}):
+            creds = DatabricksCredentials(
+                method="session",
+                database="my_catalog",
+                schema="my_schema",
+            )
+        keys = creds._connection_keys_session()
+        assert "catalog" in keys
+        assert "method" in keys
+        assert "schema" in keys
+
+    def test_connection_keys_session_with_aliases(self):
+        """_connection_keys_session with aliases includes database instead of catalog."""
+        with patch.dict(os.environ, {DBT_DATABRICKS_SESSION_MODE_ENV: "true"}):
+            creds = DatabricksCredentials(
+                method="session",
+                database="my_catalog",
+                schema="my_schema",
+            )
+        keys = creds._connection_keys_session(with_aliases=True)
+        assert "database" in keys
+
+    def test_connection_keys_session_with_session_properties(self):
+        """_connection_keys_session includes session_properties when set."""
+        with patch.dict(os.environ, {DBT_DATABRICKS_SESSION_MODE_ENV: "true"}):
+            creds = DatabricksCredentials(
+                method="session",
+                schema="my_schema",
+                session_properties={"spark.sql.shuffle.partitions": "8"},
+            )
+        keys = creds._connection_keys_session()
+        assert "session_properties" in keys

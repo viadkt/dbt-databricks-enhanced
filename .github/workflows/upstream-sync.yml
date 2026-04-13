@@ -138,6 +138,7 @@ jobs:
           fi
 
           gh pr create \
+            --repo "${{ github.repository }}" \
             --title "chore: sync upstream $NEW_TAG" \
             --base main \
             --head "$BRANCH_NAME" \

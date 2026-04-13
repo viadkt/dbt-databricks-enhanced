@@ -1,10 +1,11 @@
 """Unit tests for session mode credentials."""
 
 import os
+import sys
 from unittest.mock import MagicMock, patch
 
 import pytest
-from dbt_common.exceptions import DbtConfigError, DbtValidationError
+from dbt_common.exceptions import DbtConfigError, DbtRuntimeError, DbtValidationError
 
 from dbt.adapters.databricks.credentials import (
     CONNECTION_METHOD_DBSQL,
@@ -241,10 +242,6 @@ class TestValidateSessionMode:
 
     def test_validate_session_mode_raises_when_pyspark_missing(self):
         """_validate_session_mode raises DbtRuntimeError when pyspark is not installed."""
-        import sys
-
-        from dbt_common.exceptions import DbtRuntimeError
-
         with patch.dict(os.environ, {DBT_DATABRICKS_SESSION_MODE_ENV: "true"}):
             creds = DatabricksCredentials(method="session", schema="my_schema")
 
@@ -255,8 +252,6 @@ class TestValidateSessionMode:
 
     def test_validate_session_mode_raises_when_schema_missing(self):
         """_validate_session_mode raises DbtValidationError when schema is None."""
-        from dbt_common.exceptions import DbtValidationError
-
         with patch.dict(os.environ, {DBT_DATABRICKS_SESSION_MODE_ENV: "true"}):
             creds = DatabricksCredentials(method="session", schema="placeholder")
 

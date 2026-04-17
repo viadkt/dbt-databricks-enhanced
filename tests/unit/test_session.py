@@ -51,7 +51,7 @@ class TestSessionCursorWrapper:
         mock_spark.sql.assert_called_once_with("INSERT INTO t VALUES ('O''Brien')")
 
     def test_execute_with_bindings_handles_bool_before_int(self, cursor, mock_spark):
-        """Test that booleans render as TRUE/FALSE, not 1/0."""
+        """Test that booleans render as TRUE/FALSE, not Python's str(True)='True'."""
         mock_spark.sql.return_value = MagicMock()
 
         cursor.execute("INSERT INTO t VALUES (%s, %s)", (True, False))

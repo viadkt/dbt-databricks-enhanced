@@ -34,14 +34,47 @@ class TestSessionCursorWrapper:
         mock_spark.sql.assert_called_once_with("SELECT 1")
         assert result is cursor
 
-    def test_execute_with_bindings_raises(self, cursor, mock_spark):
-        """Test that execute raises DbtRuntimeError when bindings are provided."""
-        from dbt_common.exceptions import DbtRuntimeError
+    def test_execute_with_bindings_renders_into_sql(self, cursor, mock_spark):
+        """Test that execute renders bindings into the SQL string."""
+        mock_spark.sql.return_value = MagicMock()
 
-        with pytest.raises(
-            DbtRuntimeError, match="Session mode does not support SQL parameter bindings"
-        ):
-            cursor.execute("SELECT %s, %s", (1, "test"))
+        cursor.execute("INSERT INTO t VALUES (%s, %s, %s)", (42, "hello", None))
+
+        mock_spark.sql.assert_called_once_with("INSERT INTO t VALUES (42, 'hello', NULL)")
+
+    def test_execute_with_bindings_escapes_quotes(self, cursor, mock_spark):
+        """Test that string bindings with single quotes are properly escaped."""
+        mock_spark.sql.return_value = MagicMock()
+
+        cursor.execute("INSERT INTO t VALUES (%s)", ("O'Brien",))
+
+        mock_spark.sql.assert_called_once_with("INSERT INTO t VALUES ('O''Brien')")
+
+    def test_execute_with_bindings_handles_bool_before_int(self, cursor, mock_spark):
+        """Test that booleans render as TRUE/FALSE, not 1/0."""
+        mock_spark.sql.return_value = MagicMock()
+
+        cursor.execute("INSERT INTO t VALUES (%s, %s)", (True, False))
+
+        mock_spark.sql.assert_called_once_with("INSERT INTO t VALUES (TRUE, FALSE)")
+
+    def test_execute_with_bindings_handles_decimal(self, cursor, mock_spark):
+        """Test that Decimal values are converted to float, matching translate_bindings."""
+        from decimal import Decimal
+
+        mock_spark.sql.return_value = MagicMock()
+
+        cursor.execute("INSERT INTO t VALUES (%s)", (Decimal("0.73"),))
+
+        mock_spark.sql.assert_called_once_with("INSERT INTO t VALUES (0.73)")
+
+    def test_execute_with_bindings_handles_float(self, cursor, mock_spark):
+        """Test that float values render as bare numeric literals."""
+        mock_spark.sql.return_value = MagicMock()
+
+        cursor.execute("INSERT INTO t VALUES (%s)", (3.14,))
+
+        mock_spark.sql.assert_called_once_with("INSERT INTO t VALUES (3.14)")
 
     def test_fetchall_returns_tuples(self, cursor, mock_spark):
         """Test that fetchall returns list of tuples."""

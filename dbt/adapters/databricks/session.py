@@ -10,6 +10,7 @@ Key components:
 - DatabricksSessionHandle: Wraps SparkSession to provide the handle interface
 """
 
+import decimal
 import sys
 from collections.abc import Sequence
 from types import TracebackType
@@ -43,13 +44,30 @@ class SessionCursorWrapper:
         self._query_id: str = "session-query"
         self.open = True
 
+    @staticmethod
+    def _render_binding(value: Any) -> str:
+        """Render a Python value as a SQL literal string.
+
+        SparkSession.sql() does not support parameterized queries, so bindings
+        must be rendered into the SQL string. Type handling matches
+        SqlUtils.translate_bindings() behavior for DBSQL parity.
+        """
+        if value is None:
+            return "NULL"
+        if isinstance(value, bool):
+            return "TRUE" if value else "FALSE"
+        if isinstance(value, str):
+            return "'" + value.replace("'", "''") + "'"
+        if isinstance(value, decimal.Decimal):
+            return str(float(value))
+        return str(value)
+
     def execute(self, sql: str, bindings: Optional[Sequence[Any]] = None) -> "SessionCursorWrapper":
         """Execute a SQL statement and store the resulting DataFrame."""
         if bindings:
-            raise DbtRuntimeError(
-                "Session mode does not support SQL parameter bindings. "
-                "Render parameters into the SQL string before calling execute()."
-            )
+            # SparkSession.sql() doesn't support parameterized queries.
+            # Render bindings into the SQL string to match DBSQL connector behavior.
+            sql = sql % tuple(self._render_binding(b) for b in bindings)
         cleaned_sql = SqlUtils.clean_sql(sql)
         log_sql = redact_credentials(cleaned_sql)
         logger.debug(f"Session mode executing SQL: {log_sql[:200]}...")

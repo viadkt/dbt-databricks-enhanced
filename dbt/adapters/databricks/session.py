@@ -11,6 +11,7 @@ Key components:
 """
 
 import decimal
+import re
 import sys
 from collections.abc import Sequence
 from types import TracebackType
@@ -336,3 +337,108 @@ class DatabricksSessionHandle:
 
     def __str__(self) -> str:
         return f"SessionHandle(session-id={self.session_id})"
+
+    @staticmethod
+    def _dbt_type_to_spark_type(dbt_type: str) -> Any:
+        """Map a dbt SQL type string to a PySpark DataType.
+
+        Imports PySpark types locally to avoid import errors when PySpark
+        is not installed (e.g., in DBSQL mode or during parsing).
+        """
+        from pyspark.sql.types import (
+            BooleanType,
+            DateType,
+            DecimalType,
+            DoubleType,
+            FloatType,
+            IntegerType,
+            LongType,
+            StringType,
+            TimestampType,
+        )
+
+        # None from convert_type() when agate column type is unrecognized
+        if dbt_type is None:
+            return StringType()
+
+        type_map: dict[str, Any] = {
+            "string": StringType(),
+            "varchar": StringType(),
+            "bigint": LongType(),
+            "long": LongType(),
+            "int": IntegerType(),
+            "integer": IntegerType(),
+            "double": DoubleType(),
+            "float": FloatType(),
+            "boolean": BooleanType(),
+            "date": DateType(),
+            "timestamp": TimestampType(),
+            "time": StringType(),
+        }
+
+        normalized = dbt_type.strip().lower()
+
+        # Check direct mapping first
+        if normalized in type_map:
+            return type_map[normalized]
+
+        # Handle decimal(precision, scale)
+        decimal_match = re.match(r"decimal(?:\((\d+),\s*(\d+)\))?$", normalized)
+        if decimal_match:
+            precision = int(decimal_match.group(1)) if decimal_match.group(1) else 10
+            scale = int(decimal_match.group(2)) if decimal_match.group(2) else 0
+            return DecimalType(precision, scale)
+
+        # Handle varchar(N) — strip length parameter, map to StringType
+        if re.match(r"varchar\(\d+\)$", normalized):
+            return StringType()
+
+        # Unknown type — fall back to string
+        logger.warning(f"Unknown dbt type '{dbt_type}', falling back to StringType")
+        return StringType()
+
+    def _build_spark_schema(self, column_names: list[str], column_types: dict[str, str]) -> Any:
+        """Build a PySpark StructType schema from dbt column names and types."""
+        from pyspark.sql.types import StructField, StructType
+
+        fields = [
+            StructField(name, self._dbt_type_to_spark_type(column_types[name]), nullable=True)
+            for name in column_names
+        ]
+        return StructType(fields)
+
+    def load_seed_data(
+        self,
+        table_name: str,
+        column_names: list[str],
+        column_types: dict[str, str],
+        rows: list[list[Any]],
+    ) -> None:
+        """Load seed data via DataFrame API instead of INSERT SQL.
+
+        Creates a PySpark DataFrame from the provided rows and writes it to the
+        target table using overwrite mode. This bypasses SQL string rendering and
+        Spark SQL parsing, which is significantly faster for large seed files.
+
+        Args:
+            table_name: Fully qualified table name (e.g., `catalog`.`schema`.`table`)
+            column_names: Ordered list of column names
+            column_types: Mapping of column name to dbt SQL type string
+            rows: List of row data, each row is a list of values
+        """
+        logger.debug(
+            f"Loading seed data via DataFrame API: {len(rows)} rows, "
+            f"{len(column_names)} columns into {table_name}"
+        )
+
+        # Convert Decimal values to float, matching SqlUtils.translate_bindings behavior
+        for row in rows:
+            for i, value in enumerate(row):
+                if isinstance(value, decimal.Decimal):
+                    row[i] = float(value)
+
+        schema = self._build_spark_schema(column_names, column_types)
+        df = self._spark.createDataFrame(rows, schema)
+        df.write.mode("overwrite").insertInto(table_name)
+
+        logger.debug(f"Seed data loaded successfully into {table_name}")
